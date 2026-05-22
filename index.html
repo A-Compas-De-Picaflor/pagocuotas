@@ -591,23 +591,30 @@ function esNA(d, socioId, mes, anio) {
 function esPagado(d, socioId, mes, anio) {
   return d.pagos.some(p => p.socioId===socioId && p.mes===mes && p.anio===anio && p.tipo!=='na');
 }
+function tieneRegistrosEnAnio(d, socioId, anio) {
+  return d.pagos.some(p => p.socioId === socioId && p.anio === anio);
+}
 function calcMora(socio, refYear) {
   const d = getData();
   const hoy = new Date();
   const refDate = new Date(refYear, hoy.getMonth(), 1);
   const inicio = new Date(socio.ingreso || d.config.anioInicio + '-01-01');
+  // Si no hay ningun registro para el ano de referencia: el socio no estuvo activo ese ano
+  if (!tieneRegistrosEnAnio(d, socio.id, refYear)) {
+    return { mesesSinPagar: 0, categoria: 'aldia', badge: '<span class="badge badge-gray">Sin registro</span>', ultimoPago: null };
+  }
   let mesesSinPagar = 0;
   let ultimoPago = null;
   for (let m = 1; m <= 12; m++) {
     const periodo = new Date(refYear, m - 1, 1);
     if (periodo > refDate) break;
     if (inicio > periodo) continue;
-    if (esNA(d, socio.id, m, refYear)) continue;       // NA → no cuenta como deuda
+    if (esNA(d, socio.id, m, refYear)) continue;
     if (esPagado(d, socio.id, m, refYear)) { ultimoPago = `${MESES_FULL[m]} ${refYear}`; }
     else mesesSinPagar++;
   }
   let categoria, badge;
-  if (mesesSinPagar === 0) { categoria = 'aldia'; badge = '<span class="badge badge-green">Al día</span>'; }
+  if (mesesSinPagar === 0) { categoria = 'aldia'; badge = '<span class="badge badge-green">Al dia</span>'; }
   else if (mesesSinPagar <= 3) { categoria = 'leve'; badge = `<span class="badge badge-amber">Mora leve — ${mesesSinPagar} mes${mesesSinPagar>1?'es':''}</span>`; }
   else { categoria = 'grave'; badge = `<span class="badge badge-red">Mora grave — ${mesesSinPagar} meses</span>`; }
   return { mesesSinPagar, categoria, badge, ultimoPago };
