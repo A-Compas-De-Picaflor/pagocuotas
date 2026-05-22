@@ -990,9 +990,15 @@ function renderReporteMes() {
   const mes = Number(document.getElementById('rep-mes').value);
   const anio = Number(document.getElementById('rep-anio').value);
   const activos = d.socios.filter(s => s.estado !== 'inactivo');
-  const pagados = activos.filter(s => d.pagos.find(p => p.socioId===s.id && p.mes===mes && p.anio===anio));
-  const noPagados = activos.filter(s => !d.pagos.find(p => p.socioId===s.id && p.mes===mes && p.anio===anio && p.tipo!=='na') && !esNA(d, s.id, mes, anio));
-  const total = d.pagos.filter(p => p.mes===mes && p.anio===anio).reduce((a,p)=>a+Number(p.monto),0);
+  // pagados: tienen pago real (no NA)
+  const pagados = activos.filter(s => esPagado(d, s.id, mes, anio));
+  // noPagados: no pagaron Y no tienen NA Y tienen registros en ese anio
+  const noPagados = activos.filter(s =>
+    tieneRegistrosEnAnio(d, s.id, anio) &&
+    !esPagado(d, s.id, mes, anio) &&
+    !esNA(d, s.id, mes, anio)
+  );
+  const total = d.pagos.filter(p => p.mes===mes && p.anio===anio && p.tipo!=='na').reduce((a,p)=>a+Number(p.monto),0);
   document.getElementById('rep-mes-result').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
       <div class="card-sm"><div style="font-family:var(--mono);font-size:10px;color:var(--text3)">PAGARON</div><div style="font-size:20px;font-weight:600;color:var(--green)">${pagados.length}</div></div>
@@ -1012,19 +1018,27 @@ function renderReporteAnio() {
   let granTotal = 0;
   activos.forEach(s => {
     let totalSocio = 0;
-    html += `<tr><td style="font-weight:500">${s.nombre}</td>`;
+    // Si no tiene ningun registro en el anio, mostrar fila gris
+    const tieneAnio = tieneRegistrosEnAnio(d, s.id, anio);
+    html += `<tr><td style="font-weight:500;${!tieneAnio?'color:var(--text3)':''}">${s.nombre}</td>`;
     for (let m = 1; m <= 12; m++) {
-      const p = d.pagos.find(x => x.socioId===s.id && x.mes===m && x.anio===anio);
-      if (p) { totalSocio += Number(p.monto); html += `<td style="background:var(--green-light);font-family:var(--mono);font-size:11px">✅</td>`; }
-      else if (esNA(d,s.id,m,anio)) html += `<td style="font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--surface2)">N/A</td>`;
-      else html += `<td style="color:var(--text3);font-size:11px">—</td>`;
+      if (!tieneAnio) { html += `<td style="color:var(--text3);font-size:10px;font-family:var(--mono)">—</td>`; continue; }
+      if (esNA(d, s.id, m, anio)) {
+        html += `<td style="font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--surface2);text-align:center">N/A</td>`;
+      } else if (esPagado(d, s.id, m, anio)) {
+        const p = d.pagos.find(x => x.socioId===s.id && x.mes===m && x.anio===anio && x.tipo!=='na');
+        totalSocio += Number(p.monto);
+        html += `<td style="background:var(--green-light);font-family:var(--mono);font-size:11px;text-align:center">✅</td>`;
+      } else {
+        html += `<td style="color:var(--text3);font-size:11px;text-align:center">—</td>`;
+      }
     }
     granTotal += totalSocio;
     html += `<td style="font-family:var(--mono);font-size:12px">$${totalSocio.toLocaleString('es-CL')}</td></tr>`;
   });
   html += `<tr style="font-weight:500"><td>TOTAL</td>`;
   for (let m=1;m<=12;m++){
-    const sumM = d.pagos.filter(p=>p.mes===m&&p.anio===anio).reduce((a,p)=>a+Number(p.monto),0);
+    const sumM = d.pagos.filter(p=>p.mes===m&&p.anio===anio&&p.tipo!=='na').reduce((a,p)=>a+Number(p.monto),0);
     html+=`<td style="font-family:var(--mono);font-size:11px">$${sumM?sumM.toLocaleString('es-CL'):'—'}</td>`;
   }
   html += `<td style="font-family:var(--mono)">$${granTotal.toLocaleString('es-CL')}</td></tr>`;
