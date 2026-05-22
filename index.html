@@ -597,7 +597,10 @@ function tieneRegistrosEnAnio(d, socioId, anio) {
 function calcMora(socio, refYear) {
   const d = getData();
   const hoy = new Date();
-  const refDate = new Date(refYear, hoy.getMonth(), 1);
+  // Para anios pasados evaluar los 12 meses completos; para el anio actual solo hasta hoy
+  const refDate = refYear < hoy.getFullYear()
+    ? new Date(refYear, 11, 31)
+    : new Date(refYear, hoy.getMonth(), 1);
   const inicio = new Date(socio.ingreso || d.config.anioInicio + '-01-01');
   // Si no hay ningun registro para el ano de referencia: el socio no estuvo activo ese ano
   if (!tieneRegistrosEnAnio(d, socio.id, refYear)) {
