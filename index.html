@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CuotaFolk — Control de Pagos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #F5F2EC;
+  --surface: #FDFAF5;
+  --surface2: #EDE9E0;
+  --border: #D4CFC4;
+  --border2: #C2BBB0;
+  --text: #1A1714;
+  --text2: #5C5650;
+  --text3: #9C968E;
+  --accent: #2B4D3A;
+  --accent-light: #E3EDE7;
+  --amber: #8B5E1A;
+  --amber-light: #FDF2DC;
+  --red: #8B2020;
+  --red-light: #FDECEC;
+  --green: #1D6B3A;
+  --green-light: #E3F2EA;
+  --mono: 'DM Mono', monospace;
+  --display: 'Fraunces', serif;
+  --body: 'DM Sans', sans-serif;
+  --radius: 8px;
+  --radius-lg: 14px;
+}
+html { font-size: 14px; }
+body { font-family: var(--body); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ===== LAYOUT ===== */
+.app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
+.topbar { grid-column: 1/-1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 56px; }
+.topbar-logo { font-family: var(--display); font-size: 20px; font-weight: 600; color: var(--accent); letter-spacing: -0.3px; }
+.topbar-logo span { font-style: italic; font-weight: 300; }
+.topbar-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .05em; }
+.topbar-spacer { flex: 1; }
+.topbar-date { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; }
+.nav-section { padding: 0 12px 8px; }
+.nav-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase; padding: 0 8px 6px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius); cursor: pointer; font-size: 13px; color: var(--text2); transition: all .15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-divider { height: 1px; background: var(--border); margin: 12px 12px; }
+
+.main { padding: 28px 32px; overflow-y: auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ===== TYPOGRAPHY ===== */
+.page-title { font-family: var(--display); font-size: 28px; font-weight: 300; color: var(--text); margin-bottom: 4px; letter-spacing: -0.5px; }
+.page-title em { font-style: italic; color: var(--accent); }
+.page-subtitle { font-size: 13px; color: var(--text3); margin-bottom: 24px; font-family: var(--mono); }
+
+/* ===== CARDS ===== */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+.card-sm { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+
+/* ===== STAT CARDS ===== */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 20px; }
+.stat-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.stat-value { font-family: var(--display); font-size: 28px; font-weight: 600; color: var(--text); }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.stat-card.green { border-left: 3px solid var(--green); }
+.stat-card.amber { border-left: 3px solid var(--amber); }
+.stat-card.red { border-left: 3px solid var(--red); }
+.stat-card.accent { border-left: 3px solid var(--accent); }
+
+/* ===== BADGES ===== */
+.badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 4px; letter-spacing: .04em; }
+.badge-green { background: var(--green-light); color: var(--green); }
+.badge-amber { background: var(--amber-light); color: var(--amber); }
+.badge-red { background: var(--red-light); color: var(--red); }
+.badge-gray { background: var(--surface2); color: var(--text3); }
+.badge-accent { background: var(--accent-light); color: var(--accent); }
+.badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* ===== TABLES ===== */
+.table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+thead { background: var(--surface2); }
+th { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--text3); text-transform: uppercase; padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 500; }
+td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--surface2); }
+
+/* ===== BUTTONS ===== */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all .15s; font-family: var(--body); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #233d2e; }
+.btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.btn-secondary:hover { background: var(--surface2); }
+.btn-danger { background: var(--red-light); color: var(--red); border: 1px solid #F0BFBF; }
+.btn-danger:hover { background: #FAD8D8; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+
+/* ===== FORMS ===== */
+.form-row { display: grid; gap: 14px; margin-bottom: 16px; }
+.form-row-2 { grid-template-columns: 1fr 1fr; }
+.form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+label { font-family: var(--mono); font-size: 10px; color: var(--text2); letter-spacing: .06em; text-transform: uppercase; }
+input, select, textarea { font-family: var(--body); font-size: 13px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; transition: border-color .15s; width: 100%; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { font-size: 13px; }
+
+/* ===== MODAL ===== */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,23,20,.45); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); width: 480px; max-width: 95vw; padding: 24px; }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.modal-title { font-family: var(--display); font-size: 20px; font-weight: 300; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ===== TOOLBAR ===== */
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar-spacer { flex: 1; }
+.search-input { padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; font-family: var(--body); background: var(--surface); color: var(--text); width: 220px; outline: none; }
+.search-input:focus { border-color: var(--accent); }
+
+/* ===== FILTER TABS ===== */
+.filter-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.filter-tab { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: var(--mono); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text2); transition: all .15s; }
+.filter-tab:hover { background: var(--surface2); }
+.filter-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.filter-tab.amber.active { background: var(--amber); border-color: var(--amber); }
+.filter-tab.red.active { background: var(--red); border-color: var(--red); }
+
+/* ===== PERIOD GRID ===== */
+.period-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 20px; }
+.period-cell { border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 6px; text-align: center; cursor: pointer; transition: all .15s; background: var(--surface); }
+.period-cell:hover { border-color: var(--accent); }
+.period-cell.paid { background: var(--green-light); border-color: var(--green); }
+.period-cell.unpaid { background: var(--red-light); border-color: var(--red); }
+.period-cell.pending { background: var(--amber-light); border-color: var(--amber); }
+.period-cell.future { background: var(--surface2); color: var(--text3); cursor: default; }
+.period-cell .month { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.period-cell.paid .month, .period-cell.unpaid .month { color: inherit; opacity: .7; }
+.period-cell .status { font-size: 16px; }
+
+/* ===== EMPTY STATE ===== */
+.empty { text-align: center; padding: 48px 20px; color: var(--text3); }
+.empty-icon { font-size: 32px; margin-bottom: 12px; opacity: .5; }
+.empty p { font-size: 13px; }
+
+/* ===== DETAIL PANEL ===== */
+.socio-detail-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+.back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text3); cursor: pointer; margin-bottom: 16px; font-family: var(--mono); letter-spacing: .03em; border: none; background: none; padding: 0; }
+.back-btn:hover { color: var(--text); }
+
+/* ===== MONTH LABELS ===== */
+.months-row { display: grid; grid-template-columns: repeat(12,1fr); gap: 3px; margin-bottom: 4px; }
+.month-label { font-family: var(--mono); font-size: 9px; color: var(--text3); text-align: center; text-transform: uppercase; }
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .stats-grid { grid-template-columns: repeat(2,1fr); }
+  .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
+  .socio-detail-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== EXPORT BTN ===== */
+.export-bar { display: flex; gap: 8px; align-items: center; background: var(--surface2); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: var(--text2); }
+.export-bar strong { color: var(--text); }
+
+/* ===== TOAST ===== */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent); color: #fff; padding: 10px 18px; border-radius: var(--radius); font-size: 13px; z-index: 200; transform: translateY(80px); opacity: 0; transition: all .25s; pointer-events: none; font-family: var(--mono); }
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ===== YEAR NAV ===== */
+.year-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.year-nav-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 14px; color: var(--text2); transition: all .15s; }
+.year-nav-btn:hover { background: var(--surface2); }
+.year-display { font-family: var(--display); font-size: 18px; font-weight: 600; min-width: 60px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div>
+      <div class="topbar-logo">Cuota<em>Folk</em></div>
+    </div>
+    <div class="topbar-sub">Sistema de Control de Pagos</div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-date" id="topbar-date"></div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Principal</div>
+      <button class="nav-item active" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="navigate('socios')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="3"/><path d="M1 14c0-3 2-5 5-5s5 2 5 5"/><path d="M11 3c1.5.5 2.5 1.8 2.5 3.3 0 1.5-1 2.7-2.5 3"/><path d="M13.5 13c.3-1 1.5-2 2.5-2"/></svg>
+        Socios
+      </button>
+      <button class="nav-item" onclick="navigate('pagos')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="9" rx="2"/><path d="M1 7h14"/><path d="M4 10.5h2"/></svg>
+        Registrar Pago
+      </button>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-section">
+      <div class="nav-label">Control</div>
+      <button class="nav-item" onclick="navigate('impagos')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2L14 13H2L8 2z"/><path d="M8 7v3"/><circle cx="8" cy="11.5" r=".5" fill="currentColor"/></svg>
+        Impagos
+      </button>
+      <button class="nav-item" onclick="navigate('reportes')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>
+        Reportes
+      </button>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-section">
+      <div class="nav-label">Sistema</div>
+      <button class="nav-item" onclick="navigate('config')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M3 13l1.5-1.5M11.5 4.5L13 3"/></svg>
+        Configuración
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Resumen <em>general</em></div>
+      <div class="page-subtitle" id="dashboard-period-label"></div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Socios con mora</div>
+          <div id="dashboard-mora-list"></div>
+        </div>
+        <div class="card">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Últimos pagos registrados</div>
+          <div id="dashboard-recent-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOCIOS -->
+    <div class="page" id="page-socios">
+      <div class="page-title">Gestión de <em>socios</em></div>
+      <div class="page-subtitle" id="socios-count-label"></div>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openModal('modal-socio')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1v12M1 7h12"/></svg>
+          Nuevo socio
+        </button>
+        <div class="toolbar-spacer"></div>
+        <input class="search-input" type="text" placeholder="Buscar socio..." id="socios-search" oninput="renderSocios()">
+      </div>
+      <div class="table-wrap" id="socios-table-wrap"></div>
+    </div>
+
+    <!-- PAGOS -->
+    <div class="page" id="page-pagos">
+      <div class="page-title">Registrar <em>pago</em></div>
+      <div class="page-subtitle">Asigna un pago a un socio por período</div>
+      <div class="card" style="max-width:560px">
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label>Socio</label>
+            <select id="pago-socio">
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monto pagado</label>
+            <input type="number" id="pago-monto" placeholder="0">
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label>Mes</label>
+            <select id="pago-mes">
+              <option value="1">Enero</option><option value="2">Febrero</option>
+              <option value="3">Marzo</option><option value="4">Abril</option>
+              <option value="5">Mayo</option><option value="6">Junio</option>
+              <option value="7">Julio</option><option value="8">Agosto</option>
+              <option value="9">Septiembre</option><option value="10">Octubre</option>
+              <option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Año</label>
+            <select id="pago-anio"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Fecha de pago</label>
+            <input type="date" id="pago-fecha">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Observaciones (opcional)</label>
+            <input type="text" id="pago-obs" placeholder="Ej: Pago en efectivo, transferencia...">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-primary" onclick="registrarPago()">Registrar pago</button>
+          <button class="btn btn-secondary" onclick="limpiarFormPago()">Limpiar</button>
+        </div>
+      </div>
+
+      <div style="margin-top:28px">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Pagos registrados</div>
+        <div class="table-wrap" id="pagos-table-wrap"></div>
+      </div>
+    </div>
+
+    <!-- IMPAGOS -->
+    <div class="page" id="page-impagos">
+      <div class="page-title">Control de <em>impagos</em></div>
+      <div class="page-subtitle">Socios clasificados por estado de mora</div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)" id="impagos-stats"></div>
+      <div class="filter-tabs" id="impagos-tabs">
+        <div class="filter-tab active" onclick="setImpagosFilter('todos',this)">Todos</div>
+        <div class="filter-tab" style="color:var(--green)" onclick="setImpagosFilter('aldia',this)">✅ Al día</div>
+        <div class="filter-tab amber" onclick="setImpagosFilter('leve',this)">⚠️ Mora leve (1–3 m)</div>
+        <div class="filter-tab red" onclick="setImpagosFilter('grave',this)">🔴 Mora grave (+3 m)</div>
+      </div>
+      <div class="year-nav">
+        <button class="year-nav-btn" onclick="impagosYear--;renderImpagos()">‹</button>
+        <div class="year-display" id="impagos-year-display"></div>
+        <button class="year-nav-btn" onclick="impagosYear++;renderImpagos()">›</button>
+        <span style="font-size:12px;color:var(--text3);margin-left:8px">Referencia de cálculo</span>
+      </div>
+      <div class="table-wrap" id="impagos-table-wrap"></div>
+    </div>
+
+    <!-- REPORTES -->
+    <div class="page" id="page-reportes">
+      <div class="page-title"><em>Reportes</em></div>
+      <div class="page-subtitle">Resúmenes de recaudación e impagos</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        <div class="card">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Resumen por mes</div>
+          <div class="form-row form-row-2" style="margin-bottom:12px">
+            <div class="form-group">
+              <label>Mes</label>
+              <select id="rep-mes">
+                <option value="1">Enero</option><option value="2">Febrero</option>
+                <option value="3">Marzo</option><option value="4">Abril</option>
+                <option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option>
+                <option value="9">Septiembre</option><option value="10">Octubre</option>
+                <option value="11">Noviembre</option><option value="12">Diciembre</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Año</label>
+              <select id="rep-anio"></select>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="renderReporteMes()">Ver reporte</button>
+          <div id="rep-mes-result" style="margin-top:14px"></div>
+        </div>
+        <div class="card">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Resumen por año</div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Año</label>
+            <select id="rep-anio2"></select>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="renderReporteAnio()">Ver reporte</button>
+          <div id="rep-anio-result" style="margin-top:14px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Historial de pagos por socio</div>
+        <div class="form-group" style="margin-bottom:12px;max-width:280px">
+          <label>Socio</label>
+          <select id="rep-socio"></select>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="renderReporteSocio()">Ver historial</button>
+        <div id="rep-socio-result" style="margin-top:14px"></div>
+      </div>
+      <div style="margin-top:16px">
+        <button class="btn btn-secondary" onclick="exportarDatos()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 1v8M4 6l3 3 3-3"/><path d="M2 10v2h10v-2"/></svg>
+          Exportar datos (JSON)
+        </button>
+        <button class="btn btn-secondary" style="margin-left:8px" onclick="importarDatos()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 9V1M4 4l3-3 3 3"/><path d="M2 10v2h10v-2"/></svg>
+          Importar datos (JSON)
+        </button>
+        <input type="file" id="import-file" style="display:none" accept=".json" onchange="cargarArchivo(event)">
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="page" id="page-config">
+      <div class="page-title"><em>Configuración</em></div>
+      <div class="page-subtitle">Ajustes de la agrupación</div>
+      <div class="card" style="max-width:480px">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre de la agrupación</label>
+            <input type="text" id="cfg-nombre" placeholder="Ej: Conjunto Folklórico Los Andes">
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label>Cuota mensual ($)</label>
+            <input type="number" id="cfg-cuota" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Año de inicio del sistema</label>
+            <input type="number" id="cfg-anio-inicio" placeholder="Ej: 2024">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="guardarConfig()">Guardar configuración</button>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:8px;letter-spacing:.06em;text-transform:uppercase">Zona de peligro</div>
+          <button class="btn btn-danger btn-sm" onclick="resetearDatos()">Borrar todos los datos</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODALES -->
+<div class="modal-overlay" id="modal-socio">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nuevo <em>socio</em></div>
+      <button class="btn btn-secondary btn-icon btn-sm" onclick="closeModal('modal-socio')">✕</button>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="socio-nombre" placeholder="Nombre completo">
+      </div>
+      <div class="form-group">
+        <label>RUT / Documento</label>
+        <input type="text" id="socio-rut" placeholder="12.345.678-9">
+      </div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="socio-email" placeholder="correo@ejemplo.com">
+      </div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input type="text" id="socio-telefono" placeholder="+56 9 1234 5678">
+      </div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label>Fecha de ingreso</label>
+        <input type="date" id="socio-ingreso">
+      </div>
+      <div class="form-group">
+        <label>Rol en la agrupación</label>
+        <input type="text" id="socio-rol" placeholder="Ej: Bailarín, músico...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-socio')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarSocio()">Guardar socio</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-pago-rapido">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Registrar pago</div>
+      <button class="btn btn-secondary btn-icon btn-sm" onclick="closeModal('modal-pago-rapido')">✕</button>
+    </div>
+    <div id="modal-pago-info" style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:13px;"></div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label>Monto</label>
+        <input type="number" id="mpago-monto" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="mpago-fecha">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Observaciones</label>
+      <input type="text" id="mpago-obs" placeholder="Opcional">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pago-rapido')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarPagoRapido()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DATA STORE =====
+const STORE_KEY = 'cuotafolk_data';
+
+function getData() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData(); }
+  catch { return defaultData(); }
+}
+function setData(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
+function defaultData() {
+  return {
+    config: { nombre: 'Agrupación Folklórica', cuota: 10000, anioInicio: 2024 },
+    socios: [],
+    pagos: []
+  };
+}
+
+// ===== IDS =====
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ===== NAVIGATION =====
+let currentPage = 'dashboard';
+let impagosYear = new Date().getFullYear();
+let impagosFilter = 'todos';
+let pagoRapidoCtx = null;
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[onclick="navigate('${page}')"]`).classList.add('active');
+  currentPage = page;
+  render(page);
+}
+
+function render(page) {
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'socios') renderSocios();
+  if (page === 'pagos') renderPagos();
+  if (page === 'impagos') renderImpagos();
+  if (page === 'reportes') renderReportes();
+  if (page === 'config') renderConfig();
+}
+
+// ===== MONTHS =====
+const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_FULL = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function mesAnio(m, a) { return MESES[m] + ' ' + a; }
+
+// ===== MORA LOGIC =====
+function calcMora(socio, refYear) {
+  const d = getData();
+  const hoy = new Date();
+  const refDate = new Date(refYear, hoy.getMonth(), 1);
+  const inicio = new Date(socio.ingreso || d.config.anioInicio + '-01-01');
+  let mesesSinPagar = 0;
+  let ultimoPago = null;
+  for (let m = 1; m <= 12; m++) {
+    const periodo = new Date(refYear, m - 1, 1);
+    if (periodo > refDate) break;
+    if (inicio > periodo) continue;
+    const pago = d.pagos.find(p => p.socioId === socio.id && p.mes === m && p.anio === refYear);
+    if (!pago) mesesSinPagar++;
+    else { ultimoPago = `${MESES_FULL[m]} ${refYear}`; }
+  }
+  let categoria, badge;
+  if (mesesSinPagar === 0) { categoria = 'aldia'; badge = '<span class="badge badge-green">Al día</span>'; }
+  else if (mesesSinPagar <= 3) { categoria = 'leve'; badge = `<span class="badge badge-amber">Mora leve — ${mesesSinPagar} mes${mesesSinPagar>1?'es':''}</span>`; }
+  else { categoria = 'grave'; badge = `<span class="badge badge-red">Mora grave — ${mesesSinPagar} meses</span>`; }
+  return { mesesSinPagar, categoria, badge, ultimoPago };
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const d = getData();
+  const hoy = new Date();
+  const year = hoy.getFullYear();
+  const mes = hoy.getMonth() + 1;
+  document.getElementById('dashboard-period-label').textContent = `${MESES_FULL[mes]} ${year}`;
+  const activosSocios = d.socios.filter(s => s.estado !== 'inactivo');
+  let alDia = 0, leve = 0, grave = 0;
+  activosSocios.forEach(s => {
+    const {categoria} = calcMora(s, year);
+    if (categoria === 'aldia') alDia++;
+    else if (categoria === 'leve') leve++;
+    else grave++;
+  });
+  const pagosMes = d.pagos.filter(p => p.mes === mes && p.anio === year);
+  const recaudado = pagosMes.reduce((a,p) => a + (Number(p.monto)||0), 0);
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card accent"><div class="stat-label">Total socios</div><div class="stat-value">${activosSocios.length}</div><div class="stat-sub">activos</div></div>
+    <div class="stat-card green"><div class="stat-label">Al día</div><div class="stat-value">${alDia}</div><div class="stat-sub">sin deuda</div></div>
+    <div class="stat-card amber"><div class="stat-label">Mora leve</div><div class="stat-value">${leve}</div><div class="stat-sub">1–3 meses</div></div>
+    <div class="stat-card red"><div class="stat-label">Mora grave</div><div class="stat-value">${grave}</div><div class="stat-sub">+3 meses</div></div>
+  `;
+  const morosos = activosSocios.filter(s => calcMora(s,year).categoria !== 'aldia')
+    .sort((a,b) => calcMora(b,year).mesesSinPagar - calcMora(a,year).mesesSinPagar).slice(0,6);
+  document.getElementById('dashboard-mora-list').innerHTML = morosos.length ? morosos.map(s => {
+    const m = calcMora(s,year);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px">${s.nombre}</span>${m.badge}
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:24px 0"><div class="empty-icon">🎉</div><p>¡Todos al día!</p></div>';
+  const recientes = [...d.pagos].sort((a,b) => b.fecha > a.fecha ? 1 : -1).slice(0,6);
+  document.getElementById('dashboard-recent-list').innerHTML = recientes.length ? recientes.map(p => {
+    const s = d.socios.find(x => x.id === p.socioId);
+    return `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:13px">${s?s.nombre:'—'}</div><div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${MESES_FULL[p.mes]} ${p.anio}</div></div>
+      <span style="font-size:13px;font-family:var(--mono)">$${Number(p.monto).toLocaleString('es-CL')}</span>
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:24px 0"><p>Sin pagos registrados aún</p></div>';
+}
+
+// ===== SOCIOS =====
+function renderSocios() {
+  const d = getData();
+  const q = (document.getElementById('socios-search')?.value||'').toLowerCase();
+  const socios = d.socios.filter(s => s.nombre.toLowerCase().includes(q) || (s.rut||'').toLowerCase().includes(q));
+  document.getElementById('socios-count-label').textContent = `${socios.length} socio${socios.length!==1?'s':''} registrado${socios.length!==1?'s':''}`;
+  if (!socios.length) {
+    document.getElementById('socios-table-wrap').innerHTML = `<div class="empty"><div class="empty-icon">👥</div><p>No hay socios registrados aún.</p></div>`;
+    return;
+  }
+  const year = new Date().getFullYear();
+  document.getElementById('socios-table-wrap').innerHTML = `<table>
+    <thead><tr><th>Nombre</th><th>RUT/Doc.</th><th>Email</th><th>Ingreso</th><th>Estado de pago</th><th>Acciones</th></tr></thead>
+    <tbody>${socios.map(s => {
+      const m = calcMora(s, year);
+      return `<tr>
+        <td style="font-weight:500">${s.nombre}</td>
+        <td style="font-family:var(--mono);font-size:12px">${s.rut||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${s.email||'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${s.ingreso||'—'}</td>
+        <td>${m.badge}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="verSocio('${s.id}')">Ver</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminarSocio('${s.id}')">Eliminar</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function verSocio(id) {
+  const d = getData();
+  const s = d.socios.find(x => x.id === id);
+  if (!s) return;
+  const year = new Date().getFullYear();
+  const mora = calcMora(s, year);
+  const pagos = d.pagos.filter(p => p.socioId === id).sort((a,b) => b.anio-a.anio||b.mes-a.mes);
+  const wrap = document.getElementById('socios-table-wrap');
+  const rows = [];
+  for (let m = 1; m <= 12; m++) {
+    const p = d.pagos.find(x => x.socioId === id && x.mes === m && x.anio === year);
+    rows.push(`<div class="period-cell ${p?'paid':'unpaid'}" title="${MESES_FULL[m]} ${year}: ${p?'Pagado ($'+Number(p.monto).toLocaleString('es-CL')+')':'Sin pagar'}" onclick="abrirPagoRapido('${id}',${m},${year})">
+      <div class="month">${MESES[m]}</div>
+      <div class="status">${p?'✅':'❌'}</div>
+    </div>`);
+  }
+  wrap.innerHTML = `
+    <button class="back-btn" onclick="renderSocios()">← Volver a socios</button>
+    <div class="socio-detail-grid">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div style="font-size:18px;font-weight:500;margin-bottom:4px">${s.nombre}</div>
+          <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin-bottom:12px">${s.rol||'Sin rol asignado'}</div>
+          ${mora.badge}
+          <div style="margin-top:14px;font-size:12px;color:var(--text2);display:grid;gap:5px">
+            <div>📧 ${s.email||'—'}</div>
+            <div>📞 ${s.telefono||'—'}</div>
+            <div>🪪 ${s.rut||'—'}</div>
+            <div>📅 Ingreso: ${s.ingreso||'—'}</div>
+          </div>
+        </div>
+        <div class="card-sm">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Meses impagos ${year}</div>
+          <div style="font-size:24px;font-weight:600;font-family:var(--display);color:${mora.mesesSinPagar>3?'var(--red)':mora.mesesSinPagar>0?'var(--amber)':'var(--green)'}">${mora.mesesSinPagar}</div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Estado de pagos ${year} — clic para registrar</div>
+          <div class="period-grid">${rows.join('')}</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">✅ Pagado &nbsp; ❌ Sin pagar</div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Historial de pagos</div>
+          ${pagos.length ? `<table><thead><tr><th>Período</th><th>Monto</th><th>Fecha</th><th>Obs.</th><th></th></tr></thead><tbody>${pagos.map(p=>`<tr>
+            <td style="font-family:var(--mono);font-size:12px">${MESES_FULL[p.mes]} ${p.anio}</td>
+            <td style="font-family:var(--mono)">$${Number(p.monto).toLocaleString('es-CL')}</td>
+            <td style="font-size:12px;color:var(--text3)">${p.fecha||'—'}</td>
+            <td style="font-size:12px;color:var(--text2)">${p.obs||'—'}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="eliminarPago('${p.id}','${id}')">✕</button></td>
+          </tr>`).join('')}</tbody></table>` : '<p style="font-size:13px;color:var(--text3)">Sin pagos registrados</p>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+function abrirPagoRapido(socioId, mes, anio) {
+  const d = getData();
+  const s = d.socios.find(x => x.id === socioId);
+  const pExist = d.pagos.find(p => p.socioId === socioId && p.mes === mes && p.anio === anio);
+  if (pExist) { toast('Este mes ya está registrado como pagado'); return; }
+  pagoRapidoCtx = { socioId, mes, anio };
+  document.getElementById('modal-pago-info').innerHTML = `<strong>${s.nombre}</strong> — ${MESES_FULL[mes]} ${anio}`;
+  const cfg = d.config;
+  document.getElementById('mpago-monto').value = cfg.cuota || '';
+  document.getElementById('mpago-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('mpago-obs').value = '';
+  openModal('modal-pago-rapido');
+}
+
+function guardarPagoRapido() {
+  if (!pagoRapidoCtx) return;
+  const d = getData();
+  const monto = document.getElementById('mpago-monto').value;
+  const fecha = document.getElementById('mpago-fecha').value;
+  const obs = document.getElementById('mpago-obs').value;
+  if (!monto) { toast('Ingresa el monto'); return; }
+  d.pagos.push({ id: uid(), socioId: pagoRapidoCtx.socioId, mes: pagoRapidoCtx.mes, anio: pagoRapidoCtx.anio, monto: Number(monto), fecha, obs });
+  setData(d);
+  closeModal('modal-pago-rapido');
+  toast('Pago registrado ✅');
+  verSocio(pagoRapidoCtx.socioId);
+}
+
+function eliminarPago(id, socioId) {
+  if (!confirm('¿Eliminar este pago?')) return;
+  const d = getData();
+  d.pagos = d.pagos.filter(p => p.id !== id);
+  setData(d);
+  toast('Pago eliminado');
+  verSocio(socioId);
+}
+
+function guardarSocio() {
+  const nombre = document.getElementById('socio-nombre').value.trim();
+  if (!nombre) { toast('El nombre es obligatorio'); return; }
+  const d = getData();
+  d.socios.push({
+    id: uid(),
+    nombre,
+    rut: document.getElementById('socio-rut').value.trim(),
+    email: document.getElementById('socio-email').value.trim(),
+    telefono: document.getElementById('socio-telefono').value.trim(),
+    ingreso: document.getElementById('socio-ingreso').value,
+    rol: document.getElementById('socio-rol').value.trim(),
+    estado: 'activo'
+  });
+  setData(d);
+  closeModal('modal-socio');
+  toast('Socio agregado ✅');
+  document.getElementById('socio-nombre').value = '';
+  document.getElementById('socio-rut').value = '';
+  document.getElementById('socio-email').value = '';
+  document.getElementById('socio-telefono').value = '';
+  document.getElementById('socio-ingreso').value = '';
+  document.getElementById('socio-rol').value = '';
+  renderSocios();
+}
+
+function eliminarSocio(id) {
+  if (!confirm('¿Eliminar este socio y todos sus pagos?')) return;
+  const d = getData();
+  d.socios = d.socios.filter(s => s.id !== id);
+  d.pagos = d.pagos.filter(p => p.socioId !== id);
+  setData(d);
+  toast('Socio eliminado');
+  renderSocios();
+}
+
+// ===== PAGOS =====
+function renderPagos() {
+  const d = getData();
+  const sel = document.getElementById('pago-socio');
+  sel.innerHTML = '<option value="">— Seleccionar socio —</option>' +
+    d.socios.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+  const hoy = new Date();
+  document.getElementById('pago-mes').value = hoy.getMonth() + 1;
+  document.getElementById('pago-fecha').value = hoy.toISOString().split('T')[0];
+  fillAnioSelect('pago-anio', hoy.getFullYear());
+  const pagos = [...d.pagos].sort((a,b) => b.fecha > a.fecha ? 1 : -1);
+  const wrap = document.getElementById('pagos-table-wrap');
+  wrap.innerHTML = pagos.length ? `<table><thead><tr><th>Socio</th><th>Período</th><th>Monto</th><th>Fecha de pago</th><th>Observaciones</th><th>Acción</th></tr></thead>
+    <tbody>${pagos.map(p => {
+      const s = d.socios.find(x => x.id === p.socioId);
+      return `<tr>
+        <td>${s?s.nombre:'—'}</td>
+        <td style="font-family:var(--mono);font-size:12px">${MESES_FULL[p.mes]} ${p.anio}</td>
+        <td style="font-family:var(--mono)">$${Number(p.monto).toLocaleString('es-CL')}</td>
+        <td style="font-size:12px;color:var(--text3)">${p.fecha||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${p.obs||'—'}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="eliminarPagoGlobal('${p.id}')">✕</button></td>
+      </tr>`;
+    }).join('')}</tbody></table>` : `<div class="empty"><div class="empty-icon">💳</div><p>Sin pagos registrados</p></div>`;
+}
+
+function registrarPago() {
+  const d = getData();
+  const socioId = document.getElementById('pago-socio').value;
+  const mes = Number(document.getElementById('pago-mes').value);
+  const anio = Number(document.getElementById('pago-anio').value);
+  const monto = document.getElementById('pago-monto').value;
+  const fecha = document.getElementById('pago-fecha').value;
+  const obs = document.getElementById('pago-obs').value;
+  if (!socioId) { toast('Selecciona un socio'); return; }
+  if (!monto) { toast('Ingresa el monto'); return; }
+  if (d.pagos.find(p => p.socioId === socioId && p.mes === mes && p.anio === anio)) {
+    toast('Este socio ya tiene pago para ese período'); return;
+  }
+  d.pagos.push({ id: uid(), socioId, mes, anio, monto: Number(monto), fecha, obs });
+  setData(d); toast('Pago registrado ✅'); limpiarFormPago(); renderPagos();
+}
+
+function limpiarFormPago() {
+  document.getElementById('pago-socio').value = '';
+  document.getElementById('pago-monto').value = '';
+  document.getElementById('pago-obs').value = '';
+}
+
+function eliminarPagoGlobal(id) {
+  if (!confirm('¿Eliminar este pago?')) return;
+  const d = getData();
+  d.pagos = d.pagos.filter(p => p.id !== id);
+  setData(d); toast('Pago eliminado'); renderPagos();
+}
+
+// ===== IMPAGOS =====
+function setImpagosFilter(f, el) {
+  impagosFilter = f;
+  document.querySelectorAll('#impagos-tabs .filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderImpagos();
+}
+
+function renderImpagos() {
+  const d = getData();
+  document.getElementById('impagos-year-display').textContent = impagosYear;
+  const activos = d.socios.filter(s => s.estado !== 'inactivo');
+  let alDia=0, leve=0, grave=0;
+  activos.forEach(s => {
+    const {categoria} = calcMora(s, impagosYear);
+    if (categoria==='aldia') alDia++;
+    else if (categoria==='leve') leve++;
+    else grave++;
+  });
+  document.getElementById('impagos-stats').innerHTML = `
+    <div class="stat-card green"><div class="stat-label">Al día</div><div class="stat-value">${alDia}</div><div class="stat-sub">sin deuda en ${impagosYear}</div></div>
+    <div class="stat-card amber"><div class="stat-label">Mora leve</div><div class="stat-value">${leve}</div><div class="stat-sub">1 a 3 meses</div></div>
+    <div class="stat-card red"><div class="stat-label">Mora grave</div><div class="stat-value">${grave}</div><div class="stat-sub">más de 3 meses</div></div>
+  `;
+  let filtered = activos.map(s => ({ s, mora: calcMora(s, impagosYear) }));
+  if (impagosFilter !== 'todos') filtered = filtered.filter(x => x.mora.categoria === impagosFilter);
+  filtered.sort((a,b) => b.mora.mesesSinPagar - a.mora.mesesSinPagar);
+  const mesesPagados = (s) => {
+    const hoy = new Date();
+    let count = 0;
+    for (let m = 1; m <= 12; m++) {
+      if (new Date(impagosYear, m-1, 1) > new Date(impagosYear, hoy.getMonth(), 1)) break;
+      if (d.pagos.find(p => p.socioId === s.id && p.mes === m && p.anio === impagosYear)) count++;
+    }
+    return count;
+  };
+  const wrap = document.getElementById('impagos-table-wrap');
+  wrap.innerHTML = filtered.length ? `<table>
+    <thead><tr><th>Socio</th><th>Estado</th><th>Meses sin pagar</th><th>Meses pagados ${impagosYear}</th><th>Últimos pagos</th><th>Deuda estimada</th></tr></thead>
+    <tbody>${filtered.map(({s, mora}) => {
+      const cfg = d.config;
+      const deuda = mora.mesesSinPagar * (cfg.cuota||0);
+      const mp = mesesPagados(s);
+      return `<tr>
+        <td style="font-weight:500">${s.nombre}</td>
+        <td>${mora.badge}</td>
+        <td style="font-family:var(--mono);font-size:13px;color:${mora.mesesSinPagar>3?'var(--red)':mora.mesesSinPagar>0?'var(--amber)':'var(--green)'}">${mora.mesesSinPagar}</td>
+        <td style="font-family:var(--mono);font-size:13px">${mp}</td>
+        <td style="font-size:12px;color:var(--text3)">${mora.ultimoPago||'Sin pagos'}</td>
+        <td style="font-family:var(--mono);font-size:13px;color:var(--red)">${deuda>0?'$'+deuda.toLocaleString('es-CL'):'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>` : `<div class="empty"><div class="empty-icon">✅</div><p>No hay socios en esta categoría</p></div>`;
+}
+
+// ===== REPORTES =====
+function fillAnioSelect(id, defaultVal) {
+  const d = getData();
+  const inicio = d.config.anioInicio || 2024;
+  const fin = new Date().getFullYear() + 1;
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  for (let y = fin; y >= inicio; y--) {
+    el.innerHTML += `<option value="${y}" ${y===defaultVal?'selected':''}>${y}</option>`;
+  }
+}
+
+function renderReportes() {
+  const d = getData();
+  const hoy = new Date();
+  fillAnioSelect('rep-anio', hoy.getFullYear());
+  fillAnioSelect('rep-anio2', hoy.getFullYear());
+  document.getElementById('rep-mes').value = hoy.getMonth() + 1;
+  const sel = document.getElementById('rep-socio');
+  sel.innerHTML = '<option value="">— Seleccionar socio —</option>' +
+    d.socios.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+}
+
+function renderReporteMes() {
+  const d = getData();
+  const mes = Number(document.getElementById('rep-mes').value);
+  const anio = Number(document.getElementById('rep-anio').value);
+  const activos = d.socios.filter(s => s.estado !== 'inactivo');
+  const pagados = activos.filter(s => d.pagos.find(p => p.socioId===s.id && p.mes===mes && p.anio===anio));
+  const noPagados = activos.filter(s => !d.pagos.find(p => p.socioId===s.id && p.mes===mes && p.anio===anio));
+  const total = d.pagos.filter(p => p.mes===mes && p.anio===anio).reduce((a,p)=>a+Number(p.monto),0);
+  document.getElementById('rep-mes-result').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="card-sm"><div style="font-family:var(--mono);font-size:10px;color:var(--text3)">PAGARON</div><div style="font-size:20px;font-weight:600;color:var(--green)">${pagados.length}</div></div>
+      <div class="card-sm"><div style="font-family:var(--mono);font-size:10px;color:var(--text3)">NO PAGARON</div><div style="font-size:20px;font-weight:600;color:var(--red)">${noPagados.length}</div></div>
+      <div class="card-sm"><div style="font-family:var(--mono);font-size:10px;color:var(--text3)">RECAUDADO</div><div style="font-size:16px;font-weight:600;color:var(--accent)">$${total.toLocaleString('es-CL')}</div></div>
+    </div>
+    ${noPagados.length?`<div style="font-size:12px;color:var(--text3);margin-bottom:4px;font-family:var(--mono)">SIN PAGAR:</div><div style="font-size:12px">${noPagados.map(s=>`<span style="background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:4px;margin:2px;display:inline-block">${s.nombre}</span>`).join('')}</div>`:''}`;
+}
+
+function renderReporteAnio() {
+  const d = getData();
+  const anio = Number(document.getElementById('rep-anio2').value);
+  const activos = d.socios.filter(s => s.estado !== 'inactivo');
+  let html = '<div style="overflow-x:auto"><table><thead><tr><th>Socio</th>';
+  for (let m = 1; m <= 12; m++) html += `<th>${MESES[m]}</th>`;
+  html += '<th>Total</th></tr></thead><tbody>';
+  let granTotal = 0;
+  activos.forEach(s => {
+    let totalSocio = 0;
+    html += `<tr><td style="font-weight:500">${s.nombre}</td>`;
+    for (let m = 1; m <= 12; m++) {
+      const p = d.pagos.find(x => x.socioId===s.id && x.mes===m && x.anio===anio);
+      if (p) { totalSocio += Number(p.monto); html += `<td style="background:var(--green-light);font-family:var(--mono);font-size:11px">✅</td>`; }
+      else html += `<td style="color:var(--text3);font-size:11px">—</td>`;
+    }
+    granTotal += totalSocio;
+    html += `<td style="font-family:var(--mono);font-size:12px">$${totalSocio.toLocaleString('es-CL')}</td></tr>`;
+  });
+  html += `<tr style="font-weight:500"><td>TOTAL</td>`;
+  for (let m=1;m<=12;m++){
+    const sumM = d.pagos.filter(p=>p.mes===m&&p.anio===anio).reduce((a,p)=>a+Number(p.monto),0);
+    html+=`<td style="font-family:var(--mono);font-size:11px">$${sumM?sumM.toLocaleString('es-CL'):'—'}</td>`;
+  }
+  html += `<td style="font-family:var(--mono)">$${granTotal.toLocaleString('es-CL')}</td></tr>`;
+  html += '</tbody></table></div>';
+  document.getElementById('rep-anio-result').innerHTML = html;
+}
+
+function renderReporteSocio() {
+  const d = getData();
+  const socioId = document.getElementById('rep-socio').value;
+  if (!socioId) { toast('Selecciona un socio'); return; }
+  const s = d.socios.find(x => x.id===socioId);
+  const pagos = d.pagos.filter(p=>p.socioId===socioId).sort((a,b)=>b.anio-a.anio||b.mes-a.mes);
+  const total = pagos.reduce((a,p)=>a+Number(p.monto),0);
+  document.getElementById('rep-socio-result').innerHTML = `
+    <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">${pagos.length} pagos — Total: $${total.toLocaleString('es-CL')}</div>
+    ${pagos.length ? `<table><thead><tr><th>Período</th><th>Monto</th><th>Fecha</th><th>Observaciones</th></tr></thead><tbody>
+      ${pagos.map(p=>`<tr><td style="font-family:var(--mono);font-size:12px">${MESES_FULL[p.mes]} ${p.anio}</td><td style="font-family:var(--mono)">$${Number(p.monto).toLocaleString('es-CL')}</td><td style="font-size:12px;color:var(--text3)">${p.fecha||'—'}</td><td style="font-size:12px;color:var(--text2)">${p.obs||'—'}</td></tr>`).join('')}
+    </tbody></table>` : '<p style="font-size:13px;color:var(--text3)">Sin pagos registrados</p>'}`;
+}
+
+// ===== CONFIG =====
+function renderConfig() {
+  const d = getData();
+  document.getElementById('cfg-nombre').value = d.config.nombre||'';
+  document.getElementById('cfg-cuota').value = d.config.cuota||'';
+  document.getElementById('cfg-anio-inicio').value = d.config.anioInicio||2024;
+}
+
+function guardarConfig() {
+  const d = getData();
+  d.config.nombre = document.getElementById('cfg-nombre').value;
+  d.config.cuota = Number(document.getElementById('cfg-cuota').value);
+  d.config.anioInicio = Number(document.getElementById('cfg-anio-inicio').value);
+  setData(d); toast('Configuración guardada ✅');
+}
+
+function resetearDatos() {
+  if (!confirm('¿Borrar TODOS los datos? Esta acción no se puede deshacer.')) return;
+  localStorage.removeItem(STORE_KEY);
+  toast('Datos eliminados');
+  setTimeout(() => location.reload(), 800);
+}
+
+// ===== EXPORT / IMPORT =====
+function exportarDatos() {
+  const d = getData();
+  const blob = new Blob([JSON.stringify(d, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `cuotafolk_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function importarDatos() { document.getElementById('import-file').click(); }
+
+function cargarArchivo(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!d.socios || !d.pagos) { toast('Archivo inválido'); return; }
+      if (!confirm(`Importar ${d.socios.length} socios y ${d.pagos.length} pagos? Se reemplazarán los datos actuales.`)) return;
+      setData(d); toast('Datos importados ✅'); setTimeout(()=>location.reload(),800);
+    } catch { toast('Error al leer el archivo'); }
+  };
+  reader.readAsText(file);
+}
+
+// ===== MODAL =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
+
+// ===== TOAST =====
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ===== INIT =====
+function init() {
+  const hoy = new Date();
+  document.getElementById('topbar-date').textContent = hoy.toLocaleDateString('es-CL', {weekday:'short',day:'numeric',month:'long',year:'numeric'});
+  fillAnioSelect('pago-anio', hoy.getFullYear());
+  renderDashboard();
+}
+
+init();
+</script>
+</body>
+</html>
