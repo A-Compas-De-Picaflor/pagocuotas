@@ -192,8 +192,11 @@ select option { font-size: 13px; }
 <div class="app">
   <!-- TOPBAR -->
   <header class="topbar">
-    <div>
-      <div class="topbar-logo">Cuota<em>Folk</em></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <img id="topbar-logo-img" src="" style="height:36px;width:36px;border-radius:6px;object-fit:cover;display:none">
+      <div>
+        <div class="topbar-logo" id="topbar-nombre-display">Cuota<em>Folk</em></div>
+      </div>
     </div>
     <div class="topbar-sub">Sistema de Control de Pagos</div>
     <div class="topbar-spacer"></div>
@@ -418,6 +421,20 @@ select option { font-size: 13px; }
       <div class="card" style="max-width:480px">
         <div class="form-row">
           <div class="form-group">
+            <label>Logo del club</label>
+            <div style="display:flex;align-items:center;gap:12px">
+              <img id="cfg-logo-preview" src="" style="width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid var(--border);display:none">
+              <div>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="document.getElementById('cfg-logo-input').click()">Subir imagen</button>
+                <button class="btn btn-danger btn-sm" type="button" onclick="quitarLogo()" style="margin-left:6px">Quitar logo</button>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">PNG, JPG — recomendado cuadrado</div>
+              </div>
+            </div>
+            <input type="file" id="cfg-logo-input" accept="image/*" style="display:none" onchange="cargarLogo(event)">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label>Nombre de la agrupación</label>
             <input type="text" id="cfg-nombre" placeholder="Ej: Conjunto Folklórico Los Andes">
           </div>
@@ -567,6 +584,13 @@ const MESES_FULL = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
 function mesAnio(m, a) { return MESES[m] + ' ' + a; }
 
 // ===== MORA LOGIC =====
+// tipo en pagos: undefined o 'pago' = pago normal | 'na' = no aplica (no es deuda)
+function esNA(d, socioId, mes, anio) {
+  return d.pagos.some(p => p.socioId===socioId && p.mes===mes && p.anio===anio && p.tipo==='na');
+}
+function esPagado(d, socioId, mes, anio) {
+  return d.pagos.some(p => p.socioId===socioId && p.mes===mes && p.anio===anio && p.tipo!=='na');
+}
 function calcMora(socio, refYear) {
   const d = getData();
   const hoy = new Date();
@@ -578,9 +602,9 @@ function calcMora(socio, refYear) {
     const periodo = new Date(refYear, m - 1, 1);
     if (periodo > refDate) break;
     if (inicio > periodo) continue;
-    const pago = d.pagos.find(p => p.socioId === socio.id && p.mes === m && p.anio === refYear);
-    if (!pago) mesesSinPagar++;
-    else { ultimoPago = `${MESES_FULL[m]} ${refYear}`; }
+    if (esNA(d, socio.id, m, refYear)) continue;       // NA → no cuenta como deuda
+    if (esPagado(d, socio.id, m, refYear)) { ultimoPago = `${MESES_FULL[m]} ${refYear}`; }
+    else mesesSinPagar++;
   }
   let categoria, badge;
   if (mesesSinPagar === 0) { categoria = 'aldia'; badge = '<span class="badge badge-green">Al día</span>'; }
@@ -666,14 +690,17 @@ function verSocio(id) {
   if (!s) return;
   const year = new Date().getFullYear();
   const mora = calcMora(s, year);
-  const pagos = d.pagos.filter(p => p.socioId === id).sort((a,b) => b.anio-a.anio||b.mes-a.mes);
+  const pagos = d.pagos.filter(p => p.socioId === id && p.tipo !== 'na').sort((a,b) => b.anio-a.anio||b.mes-a.mes);
   const wrap = document.getElementById('socios-table-wrap');
   const rows = [];
   for (let m = 1; m <= 12; m++) {
-    const p = d.pagos.find(x => x.socioId === id && x.mes === m && x.anio === year);
-    rows.push(`<div class="period-cell ${p?'paid':'unpaid'}" title="${MESES_FULL[m]} ${year}: ${p?'Pagado ($'+Number(p.monto).toLocaleString('es-CL')+')':'Sin pagar'}" onclick="abrirPagoRapido('${id}',${m},${year})">
+    const na = esNA(d, id, m, year);
+    const pagado = esPagado(d, id, m, year);
+    const cls = na ? 'future' : pagado ? 'paid' : 'unpaid';
+    const ico = na ? '<span style=\"font-size:11px;font-family:var(--mono);color:var(--text3)\">N/A</span>' : pagado ? '✅' : '❌';
+    rows.push(`<div class="period-cell ${cls}" title="${na?'No aplica':pagado?'Pagado':'Sin pagar'}" onclick="accionCelda('${id}',${m},${year})">
       <div class="month">${MESES[m]}</div>
-      <div class="status">${p?'✅':'❌'}</div>
+      <div class="status">${ico}</div>
     </div>`);
   }
   wrap.innerHTML = `
@@ -700,7 +727,7 @@ function verSocio(id) {
         <div class="card">
           <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Estado de pagos ${year} — clic para registrar</div>
           <div class="period-grid">${rows.join('')}</div>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">✅ Pagado &nbsp; ❌ Sin pagar</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">✅ Pagado &nbsp; ❌ Sin pagar &nbsp; <span style='opacity:.6'>N/A No aplica</span></div>
         </div>
         <div class="card" style="margin-top:14px">
           <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Historial de pagos</div>
@@ -716,11 +743,39 @@ function verSocio(id) {
     </div>`;
 }
 
+function accionCelda(socioId, mes, anio) {
+  const d = getData();
+  const s = d.socios.find(x => x.id === socioId);
+  const na = esNA(d, socioId, mes, anio);
+  const pagado = esPagado(d, socioId, mes, anio);
+  if (na) {
+    if (confirm(`${MESES_FULL[mes]} ${anio} está marcado como N/A.\n¿Quitarle el NA y dejarlo como mes a cobrar?`)) {
+      d.pagos = d.pagos.filter(p => !(p.socioId===socioId && p.mes===mes && p.anio===anio && p.tipo==='na'));
+      setData(d); verSocio(socioId);
+    }
+    return;
+  }
+  if (pagado) {
+    const p = d.pagos.find(x => x.socioId===socioId && x.mes===mes && x.anio===anio && x.tipo!=='na');
+    if (confirm(`${MESES_FULL[mes]} ${anio} ya está pagado ($${Number(p.monto).toLocaleString('es-CL')}).\n¿Eliminar este pago?`)) {
+      d.pagos = d.pagos.filter(x => x.id !== p.id);
+      setData(d); verSocio(socioId);
+    }
+    return;
+  }
+  // Sin pagar: preguntar pago o NA
+  const accion = confirm(`${MESES_FULL[mes]} ${anio}\n\nOK = Registrar pago\nCancelar = Marcar como N/A`);
+  if (accion) {
+    abrirPagoRapido(socioId, mes, anio);
+  } else {
+    d.pagos.push({ id: uid(), socioId, mes, anio, monto: 0, fecha: '', obs: '', tipo: 'na' });
+    setData(d); verSocio(socioId); toast('Mes marcado como N/A');
+  }
+}
+
 function abrirPagoRapido(socioId, mes, anio) {
   const d = getData();
   const s = d.socios.find(x => x.id === socioId);
-  const pExist = d.pagos.find(p => p.socioId === socioId && p.mes === mes && p.anio === anio);
-  if (pExist) { toast('Este mes ya está registrado como pagado'); return; }
   pagoRapidoCtx = { socioId, mes, anio };
   document.getElementById('modal-pago-info').innerHTML = `<strong>${s.nombre}</strong> — ${MESES_FULL[mes]} ${anio}`;
   const cfg = d.config;
@@ -929,7 +984,7 @@ function renderReporteMes() {
   const anio = Number(document.getElementById('rep-anio').value);
   const activos = d.socios.filter(s => s.estado !== 'inactivo');
   const pagados = activos.filter(s => d.pagos.find(p => p.socioId===s.id && p.mes===mes && p.anio===anio));
-  const noPagados = activos.filter(s => !d.pagos.find(p => p.socioId===s.id && p.mes===mes && p.anio===anio));
+  const noPagados = activos.filter(s => !d.pagos.find(p => p.socioId===s.id && p.mes===mes && p.anio===anio && p.tipo!=='na') && !esNA(d, s.id, mes, anio));
   const total = d.pagos.filter(p => p.mes===mes && p.anio===anio).reduce((a,p)=>a+Number(p.monto),0);
   document.getElementById('rep-mes-result').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
@@ -954,6 +1009,7 @@ function renderReporteAnio() {
     for (let m = 1; m <= 12; m++) {
       const p = d.pagos.find(x => x.socioId===s.id && x.mes===m && x.anio===anio);
       if (p) { totalSocio += Number(p.monto); html += `<td style="background:var(--green-light);font-family:var(--mono);font-size:11px">✅</td>`; }
+      else if (esNA(d,s.id,m,anio)) html += `<td style="font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--surface2)">N/A</td>`;
       else html += `<td style="color:var(--text3);font-size:11px">—</td>`;
     }
     granTotal += totalSocio;
@@ -987,6 +1043,8 @@ function renderReporteSocio() {
 function renderConfig() {
   const d = getData();
   document.getElementById('cfg-nombre').value = d.config.nombre||'';
+  const prev = document.getElementById('cfg-logo-preview');
+  if (d.config.logo) { prev.src = d.config.logo; prev.style.display='block'; } else { prev.style.display='none'; }
   document.getElementById('cfg-cuota').value = d.config.cuota||'';
   document.getElementById('cfg-anio-inicio').value = d.config.anioInicio||2024;
 }
@@ -996,7 +1054,34 @@ function guardarConfig() {
   d.config.nombre = document.getElementById('cfg-nombre').value;
   d.config.cuota = Number(document.getElementById('cfg-cuota').value);
   d.config.anioInicio = Number(document.getElementById('cfg-anio-inicio').value);
-  setData(d); toast('Configuración guardada ✅');
+  setData(d); actualizarTopbar(); toast('Configuración guardada ✅');
+}
+
+function cargarLogo(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const d = getData(); d.config.logo = ev.target.result; setData(d);
+    const prev = document.getElementById('cfg-logo-preview');
+    prev.src = ev.target.result; prev.style.display='block';
+    actualizarTopbar(); toast('Logo cargado ✅');
+  };
+  reader.readAsDataURL(file);
+}
+
+function quitarLogo() {
+  const d = getData(); delete d.config.logo; setData(d);
+  const prev = document.getElementById('cfg-logo-preview');
+  prev.src=''; prev.style.display='none';
+  actualizarTopbar(); toast('Logo eliminado');
+}
+
+function actualizarTopbar() {
+  const d = getData();
+  const img = document.getElementById('topbar-logo-img');
+  const lbl = document.getElementById('topbar-nombre-display');
+  if (d.config.logo) { img.src=d.config.logo; img.style.display='block'; } else { img.src=''; img.style.display='none'; }
+  if (d.config.nombre) lbl.innerHTML = d.config.nombre;
 }
 
 function resetearDatos() {
@@ -1049,6 +1134,7 @@ function toast(msg) {
 // ===== INIT =====
 function init() {
   const hoy = new Date();
+  actualizarTopbar();
   document.getElementById('topbar-date').textContent = hoy.toLocaleDateString('es-CL', {weekday:'short',day:'numeric',month:'long',year:'numeric'});
   fillAnioSelect('pago-anio', hoy.getFullYear());
   renderDashboard();
